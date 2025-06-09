@@ -1,0 +1,6 @@
+#!/bin/bash
+set -e
+systemctl daemon-reload
+systemctl disable z-zproject.service
+systemctl enable z-zproject.service
+exit 0

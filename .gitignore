@@ -1,0 +1,8 @@
+build/*
+install/*
+log/*
+.vscode
+3rdparty/spdlog/lib
+3rdparty/spdlog/include
+3rdparty/yaml-cpp/lib
+3rdparty/yaml-cpp/include

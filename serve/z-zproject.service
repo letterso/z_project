@@ -1,0 +1,16 @@
+[Unit]
+	Description=zproject
+
+[Service]
+    Type=simple
+    Restart=no
+    User=root
+    Group=root
+	WorkingDirectory=/home/robot/.Workspace/cn.z.zproject
+	Environment=LD_LIBRARY_PATH=lib:/opt/ros/humble/lib:/usr/lib/aarch64-linux-gnu:$LD_LIBRARY_PATH
+	ExecStart=/bin/bash -c 'source /opt/ros/humble/setup.bash; /home/robot/.Workspace/cn.z.zproject/bin/timer_node'
+	ExecStop=/bin/bash -c '/usr/bin/killall /timer_node'
+	ExecKill=/bin/bash -c '/usr/bin/killall /timer_node'
+
+[Install]
+	WantedBy=multi-user.target
