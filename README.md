@@ -22,7 +22,7 @@
 ├── README.md   
 ├── src             # 程序源码
 ├── tools           # python工具
-└── xslt
+└── xslt            # 一些用于生成 html 的模板
 ```
 
 # 环境
@@ -34,6 +34,7 @@
 ```bash
 sudo apt update
 sudo apt install gcc g++ cmake make xsltproc cppcheck
+bash .githook.sh # 配置git commit hook
 ```
 
 # 编译打包
@@ -49,7 +50,7 @@ sudo apt install gcc g++ cmake make xsltproc cppcheck
     make pack       # 打包程序为deb
     make test       # 编译代码和单元测试
     make build      # 编译代码
-    make check      # 静态检测代码，输出结果在build目录cppcheck_report.html
+    make check      # 静态检测代码，输出结果在build目录cppcheck_report.xml/cppcheck_report.html
     make clean      # 删除编译缓存
     ```
     install和pack时要注意修改`APP_ROOT_DIR`路径，pack时该变量设置为打包安装路径
