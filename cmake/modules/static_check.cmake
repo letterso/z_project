@@ -9,15 +9,15 @@ endif()
 set(CPPCHECK_XML_REPORT ${CMAKE_BINARY_DIR}/cppcheck_report.xml)
 add_custom_target(run_cppcheck
     COMMAND ${CPPCHECK_EXECUTABLE}
-            --inline-suppr
+            --enable=all
             --language=c++
             --std=c++17
-            --enable=all
+            --inline-suppr
+            --inconclusive
+            --suppress=missingInclude
             --quiet
             --force
             --project=${CMAKE_BINARY_DIR}/compile_commands.json # 使用编译数据库
-            --inconclusive
-            --suppress=missingInclude
             --xml
             --xml-version=2
             --output-file=${CPPCHECK_XML_REPORT}
