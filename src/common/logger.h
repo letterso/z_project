@@ -61,7 +61,7 @@ private:
         }
     }
 
-    void delete_directories() {
+    static void delete_directories() {
         for (auto &entry : std::filesystem::directory_iterator(LOG_DIR)) { // 遍历当前文件夹
             if (entry.is_directory()) {
                 // 获取文件夹名称
