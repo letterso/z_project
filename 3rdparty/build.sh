@@ -1,8 +1,8 @@
 # spdlog
 echo "Configuring and building 3rdparty/spdlog ..."
-tar -zxvf spdlog-1.14.1.tar.gz
-mkdir -p spdlog-1.14.1/build
-pushd spdlog-1.14.1/build
+tar -zxvf spdlog-1.15.3.tar.gz
+mkdir -p spdlog-1.15.3/build
+pushd spdlog-1.15.3/build
 cmake -DCMAKE_BUILD_TYPE=Release -DSPDLOG_BUILD_PIC=ON -DCMAKE_INSTALL_PREFIX:PATH=../release ..
 make -j8
 make install
@@ -10,9 +10,9 @@ popd
 rm -rf spdlog/lib
 rm -rf spdlog/include
 mkdir -p spdlog/lib
-cp -r spdlog-1.14.1/release/include spdlog
-cp spdlog-1.14.1/release/lib/libspdlog.a spdlog/lib/libspdlog.a
-rm -rf spdlog-1.14.1
+cp -r spdlog-1.15.3/release/include spdlog
+cp spdlog-1.15.3/release/lib/libspdlog.a spdlog/lib/libspdlog.a
+rm -rf spdlog-1.15.3
 
 # yaml-cpp
 echo "Configuring and building 3rdparty/yaml-cpp"
