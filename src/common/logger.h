@@ -4,12 +4,14 @@
 #include "make_unique.h"
 #include "singleton.h"
 
-#include <spdlog/async.h>
-#include <spdlog/fmt/ostr.h>
+#include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/spdlog.h>
+#include <spdlog/async.h>
+
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 
 #include <memory>
 #include <thread>
@@ -31,6 +33,21 @@
 
 // 周期
 #define LOG_MAX_DAY 7                        // 最大保存天数
+
+// Custom formatter for Eigen::DenseBase types
+template<typename T>
+struct fmt::formatter<T, std::enable_if_t<std::is_base_of<Eigen::DenseBase<T>, T>::value, char>> {
+    constexpr auto parse(format_parse_context& ctx) const {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(const Eigen::DenseBase<T>& mat, FormatContext& ctx) const {
+        std::stringstream ss;
+        ss << mat;
+        return fmt::format_to(ctx.out(), "{}", ss.str());
+    }
+};
 
 class LoggerManager {
 private:
@@ -107,7 +124,6 @@ public:
 
     ~LoggerManager() {}
 };
-
 
 #define LOGE(...) Singleton<Logger>::instance().log_error(__VA_ARGS__)
 #define LOGW(...) Singleton<Logger>::instance().log_warn(__VA_ARGS__)
