@@ -25,6 +25,15 @@ void print_application_info() {
 
 int main()
 {
+    // 日志初始化
+    auto &logger_instance = Singleton<Logger>::instance();
+    if (!logger_instance.init())
+    {
+        LOGC("Failed to create logger");
+        return -1;
+    }    
+
+    // 节点信息
     print_application_info();
 
     double last_time = 0;

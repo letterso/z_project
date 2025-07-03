@@ -14,21 +14,19 @@
 #include <Eigen/Geometry>
 
 #include <memory>
-#include <thread>
 #include <filesystem>
 
 // normal日志
-#define LOG_DIR "./log"                               // 日志根目录
-#define LOG_TOPIC "node"                              // 日志tag
-#define LOG_FILE_SIZE 1024 * 1024 * 5                 // 5MB
-#define LOG_ROTATION 3                                // 日志文件满3个时开始滚动日志
-#define LOG_FLUSH_F 1                                 // 1秒flush一次
-#define LOG_FLUSH_ON spdlog::level::warn              // 当打印这个级别日志时flush
-#define PATTERN "[%Y-%m-%d %H:%M:%S.%f] [%^%L%$] %v"  // 日志样式
+#define LOG_DIR "./log"                             // 日志根目录
+#define LOG_TOPIC "node"                            // 日志tag
+#define LOG_FILE_SIZE 1024 * 1024 * 5               // 5MB
+#define LOG_ROTATION 3                              // 日志文件满3个时开始滚动日志
+#define LOG_FLUSH_F 1                               // 1秒flush一次
+#define LOG_FLUSH_ON spdlog::level::info            // 当打印这个级别日志时flush
+#define PATTERN "[%Y-%m-%d %H:%M:%S.%e][%^%L%$] %v" // 日志样式
 
 // evaluate日志
 #define LOG_TIME_TOPIC "time"
-#define EVALOG_FLUSH_ON spdlog::level::info  // 当打印这个级别日志时flush
 #define EVALOG_PATTERN "%v"                  // 日志样式
 
 // 周期
@@ -125,139 +123,248 @@ public:
     ~LoggerManager() {}
 };
 
-#define LOGE(...) Singleton<Logger>::instance().log_error(__VA_ARGS__)
-#define LOGW(...) Singleton<Logger>::instance().log_warn(__VA_ARGS__)
-#define LOGI(...) Singleton<Logger>::instance().log_info(__VA_ARGS__)
-#define LOGD(...) Singleton<Logger>::instance().log_debug(__VA_ARGS__)
-#define LOGC(...) Singleton<Logger>::instance().log_critical(__VA_ARGS__)
+#define LOGC(fmt, ...) \
+    Singleton<Logger>::instance().log_critical(fmt, ##__VA_ARGS__)
+#define LOGE(fmt, ...) \
+    Singleton<Logger>::instance().log_error(fmt, ##__VA_ARGS__)
+#define LOGW(fmt, ...) \
+    Singleton<Logger>::instance().log_warn(fmt, ##__VA_ARGS__)
+#define LOGI(fmt, ...) \
+    Singleton<Logger>::instance().log_info(fmt, ##__VA_ARGS__)
+#define LOGD(fmt, ...) \
+    Singleton<Logger>::instance().log_debug(fmt, ##__VA_ARGS__)
+#define LOGT(fmt, ...) \
+    Singleton<Logger>::instance().log_trace(fmt, ##__VA_ARGS__)
+
+#define EVALOGTIME(fmt, ...) \
+    Singleton<Logger>::instance().log_time(fmt, ##__VA_ARGS__)
+
 class Logger {
-private:
-    std::unique_ptr<spdlog::logger> _logger;
+public:
+    Logger(const Logger &) = delete;
+    Logger &operator=(const Logger &) = delete;
+    Logger() = default;
+    ~Logger()
+    {
+        if (m_logger)
+        {
+            m_logger->flush();
+            // spdlog::drop(LOG_TOPIC);
+        }
+
+        for (const auto &evaluate_logge : m_evaluate_loggers)
+        {
+            if (evaluate_logge.second)
+            {
+                evaluate_logge.second->flush();
+                // spdlog::drop(evaluate_logge.first);
+            }
+        }
+
+        spdlog::shutdown(); 
+        m_thread_pool.reset();
+    }
+
+    bool init() {
+        auto &&function = [&]() {
+            // 创建线程池
+            m_thread_pool = std::make_shared<spdlog::details::thread_pool>(8192, 2); // 队列大小，工作线程
+            // 获取日志目录
+            std::string log_file_name = Singleton<LoggerManager>::instance().get_log_file_name();
+
+            // 创建主日志
+            if(!m_logger){
+                // 创建sinks
+                auto stdout_sink = std::make_shared<stdout_sink_t>();
+                auto rotating_sink = std::make_shared<rotating_sink_t>(log_file_name + "/" + LOG_TOPIC + ".log", LOG_FILE_SIZE, LOG_ROTATION);
+                std::vector<spdlog::sink_ptr> sinks{stdout_sink, rotating_sink};
+                // 构建日志器
+                m_logger = std::make_shared<spdlog::async_logger>(LOG_TOPIC, sinks.begin(), sinks.end(), m_thread_pool, spdlog::async_overflow_policy::block);
+                m_logger->set_pattern(PATTERN);
+                if (is_debug_mode()) {
+                    m_logger->set_level(spdlog::level::debug);
+                } else {
+                    m_logger->set_level(spdlog::level::info);
+                }
+                m_logger->flush_on(LOG_FLUSH_ON);
+            }
+
+            // 创建评估日志
+            if (is_evaluate_mode()) {
+                createAndConfigureLogger(LOG_TIME_TOPIC, log_file_name + "/" + LOG_TIME_TOPIC + ".log");
+            } 
+        };
+
+        try {
+            function();
+            return true;
+        } catch (const std::exception &e) {
+            SPDLOG_ERROR("[LOGGER] Construct logger error: {}", e.what());
+            return false;
+        }
+
+        // 设置全局定时刷新
+        spdlog::flush_every(std::chrono::seconds(LOG_FLUSH_F));
+    }
+
+    inline void flush()
+    {
+        if (m_logger)
+        {
+            m_logger->flush();
+        }
+
+        for (const auto &evaluate_logge : m_evaluate_loggers)
+        {
+            if (evaluate_logge.second)
+            {
+                evaluate_logge.second->flush();
+            }
+        }
+    }
+
+    template <typename... Args>
+    inline void log_critical(const char *fmt, Args... args)
+    {
+        if (m_logger)
+        {
+            m_logger->critical(fmt, args...);
+        }
+        else
+        {
+            SPDLOG_CRITICAL(fmt, args...);
+        }
+    }
+
+    template <typename... Args>
+    inline void log_error(const char *fmt, Args... args)
+    {
+        if (m_logger)
+        {
+            m_logger->error(fmt, args...);
+        }
+        else
+        {
+            SPDLOG_ERROR(fmt, args...);
+        }
+    }
+
+    template <typename... Args>
+    inline void log_warn(const char *fmt, Args... args)
+    {
+        if (m_logger)
+        {
+            m_logger->warn(fmt, args...);
+        }
+        else
+        {
+            SPDLOG_WARN(fmt, args...);
+        }
+    }
+
+    template <typename... Args>
+    inline void log_info(const char *fmt, Args... args)
+    {
+        if (m_logger)
+        {
+            m_logger->info(fmt, args...);
+        }
+        else
+        {
+            SPDLOG_INFO(fmt, args...);
+        }
+    }
+
+    template <typename... Args>
+    inline void log_debug(const char *fmt, Args... args)
+    {
+        if (m_logger)
+        {
+            m_logger->debug(fmt, args...);
+        }
+        else
+        {
+            SPDLOG_DEBUG(fmt, args...);
+        }
+    }
+
+    template <typename... Args>
+    inline void log_trace(const char *fmt, Args... args)
+    {
+        if (m_logger)
+        {
+            m_logger->trace(fmt, args...);
+        }
+        else
+        {
+            SPDLOG_TRACE(fmt, args...);
+        }
+    }
+
+    template <typename... Args>
+    inline void log_time(const char *fmt, Args... args)
+    {
+        if (m_evaluate_loggers[LOG_TIME_TOPIC])
+            m_evaluate_loggers[LOG_TIME_TOPIC]->info(fmt, args...);
+    }
 
 private:
+    std::shared_ptr<spdlog::details::thread_pool> m_thread_pool;
+    std::shared_ptr<spdlog::logger> m_logger;
+    std::unordered_map<std::string, std::shared_ptr<spdlog::async_logger>> m_evaluate_loggers;
+
+    using stdout_sink_t = spdlog::sinks::stdout_color_sink_mt;
+    using rotating_sink_t = spdlog::sinks::rotating_file_sink_mt;
+    using basic_sink_t = spdlog::sinks::basic_file_sink_mt;
+
     static bool is_debug_mode() {
         char *var = getenv("debug");
         if (nullptr == var) {
             return false;
         }
         if (0 == strcmp(var, "on")) {
-            std::cout << "[LOGGER] debug mode "<< std::endl;
+            SPDLOG_INFO("[LOGGER] debug mode on");
             return true;
         }
         return false;
     }
 
-public:
-    Logger() {
-        auto function = [&]() {
-            std::string log_file_name = Singleton<LoggerManager>::instance().get_log_file_name();
-            auto stdout_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-            auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-                log_file_name + "/" + LOG_TOPIC + ".log", LOG_FILE_SIZE, LOG_ROTATION);
-            std::vector<spdlog::sink_ptr> sinks{stdout_sink, rotating_sink};
-            _logger = std::make_unique<spdlog::logger>(LOG_TOPIC, sinks.begin(), sinks.end());
-            _logger->set_pattern(PATTERN);
-            if (is_debug_mode()) {
-                _logger->set_level(spdlog::level::debug);
-            } else {
-                _logger->set_level(spdlog::level::info);
-            }
-            _logger->flush_on(LOG_FLUSH_ON);
-        };
-        try {
-            function();
-        } catch (const std::exception &e) {
-            std::cout << "[LOGGER] Construct logger error: " << e.what() << std::endl;
-        }
-        std::thread([&]() {
-            while (true) {
-                _logger->flush();
-                std::this_thread::sleep_for(std::chrono::seconds(LOG_FLUSH_F));
-            }
-        }).detach();
-    }
-    
-    ~Logger() { 
-        _logger->flush();
-        spdlog::drop(LOG_TOPIC);
-    }
-
-    template <typename... Args>
-    inline void log_error(const char *fmt, Args... args) {
-        _logger->error(fmt, args...);
-    }
-
-    template <typename... Args>
-    inline void log_warn(const char *fmt, Args... args) {
-        _logger->warn(fmt, args...);
-    }
-
-    template <typename... Args>
-    inline void log_info(const char *fmt, Args... args) {
-        _logger->info(fmt, args...);
-    }
-
-    template <typename... Args>
-    inline void log_debug(const char *fmt, Args... args) {
-        _logger->debug(fmt, args...);
-    }
-
-    template <typename... Args>
-    inline void log_critical(const char *fmt, Args... args) {
-        _logger->critical(fmt, args...);
-    }
-};
-
-#define EVALOGTIME(...) Singleton<EvaluateLogger>::instance().log_time(__VA_ARGS__)
-class EvaluateLogger {
-   private:
-    std::shared_ptr<spdlog::logger> _time_logger;
-    bool _evaluate_flag;
-
-   private:
-    bool is_evaluate_mode() {
+    static bool is_evaluate_mode() {
         char *var = getenv("evaluate");
         if (nullptr == var) {
-            _evaluate_flag = false;
             return false;
         }
         if (0 == strcmp(var, "on")) {
-            _evaluate_flag = true;
+            SPDLOG_INFO("[LOGGER] evaluate mode on");
             return true;
         }
         return false;
     }
 
-   public:
-    EvaluateLogger() {
-        auto function = [&]() {
-            if (is_evaluate_mode()) {
-                std::string log_file_name = Singleton<LoggerManager>::instance().get_log_file_name();
-                _time_logger = spdlog::basic_logger_mt<spdlog::async_factory>(
-                    LOG_TIME_TOPIC, log_file_name + "/" + LOG_TIME_TOPIC + ".log", true);
-                _time_logger->set_pattern(EVALOG_PATTERN);
-                _time_logger->set_level(spdlog::level::info);
-                _time_logger->flush_on(EVALOG_FLUSH_ON);
-            } 
-        };
-        try {
-            function();
-        } catch (const std::exception &e) {
-            std::cout << "[LOGGER] Construct logger error: " << e.what() << std::endl;
-        }
-    }
+    std::shared_ptr<spdlog::async_logger> createAndConfigureLogger(
+        const std::string& logger_name,
+        const std::string& filename) {
 
-    ~EvaluateLogger() { 
-       if (is_evaluate_mode()) {
-           _time_logger->flush();
-           spdlog::drop(LOG_TIME_TOPIC);
-       }
-    }
+        // 创建文件 Sink
+        auto file_sink = std::make_shared<basic_sink_t>(filename, true);
+        
+        // 创建异步 Logger
+        auto logger = std::make_shared<spdlog::async_logger>(
+            logger_name,
+            file_sink, // 每个Logger绑定自己的文件Sink
+            m_thread_pool, // 共享同一个线程池
+            spdlog::async_overflow_policy::block
+        );
 
-    template <typename... Args>
-    inline void log_time(const char *fmt, Args... args) {
-        if(_evaluate_flag)
-            _time_logger->info(fmt, args...);
+        // 应用相同的日志配置
+        logger->set_pattern(EVALOG_PATTERN);
+        logger->set_level(spdlog::level::info); 
+        logger->flush_on(spdlog::level::info);
+
+        // 将创建的logger添加到管理列表
+        m_evaluate_loggers[logger_name] = logger;
+        
+        return logger;
     }
 };
 

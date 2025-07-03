@@ -10,6 +10,14 @@
 
 int main(int argc, char **argv)
 {
+    // 日志初始化
+    auto &logger_instance = Singleton<Logger>::instance();
+    if (!logger_instance.init())
+    {
+        LOGC("Failed to create logger");
+        return -1;
+    } 
+
     MessageQueue _msg_chan;
     if (!_msg_chan.get_msg_queue(M_TO_S_CHAN_KEY))
     {
