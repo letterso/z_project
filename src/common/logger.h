@@ -89,11 +89,11 @@ private:
                     ss >> std::get_time(&folder_time, "%Y%m%d");
 
                     if (ss.fail()) {
-                        std::cerr << "[LOGGER] date parsing failed: " << folder_name << std::endl;
+                        SPDLOG_ERROR("[LOGGER] date parsing failed: {}", folder_name);
                         continue;
                     }
 
-                    // 将文件夹时间转换为时间_t
+                    // 将文件夹时间转换为time_t
                     std::time_t folder_time_t = std::mktime(&folder_time);
                     std::time_t now = std::time(nullptr);
 
@@ -103,7 +103,7 @@ private:
                     // 删除超过最大保存天数的文件夹
                     if (days_old >= LOG_MAX_DAY) {
                         std::filesystem::remove_all(entry.path());
-                        std::cout << "[LOGGER] remove old directories: " << entry.path() << std::endl;
+                        SPDLOG_INFO("[LOGGER] remove old directories: {}", entry.path().string());
                     }
                 }
             }
