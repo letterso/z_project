@@ -1,6 +1,6 @@
-# 模板工程
+# 自用C++基础工程
 
-基础C++工程，工程架构。
+构建通用c++开发工程目录框架，实现C++开发基础。
 
 索引
 
@@ -103,15 +103,15 @@ export evaluate=off    # 关闭evaluate模式
 
 #### 耗时分析
 
-- TimeCostEva：评估耗时并写入日志
+- `TimeCostEva`：评估耗时并写入日志
 
-- TicToc：手动指定启停的耗时分析
+- `TicToc`：手动指定启停的耗时分析
 
-- TimeCost：raii机制实现的耗时评估
+- `TimeCost`：raii机制实现的耗时评估
 
 ### ipc
 
-#### 消息队列
+基于消息队列实现
 
 # 工具
 
