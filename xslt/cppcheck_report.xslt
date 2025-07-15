@@ -216,7 +216,6 @@
   
   <div class="footer">
     <p>报告生成时间: <script>document.write(new Date().toLocaleString());</script></p>
-    <p>问题反馈: jassimxiong@gmail.com</p>
   </div>
 </body>
 </html>
