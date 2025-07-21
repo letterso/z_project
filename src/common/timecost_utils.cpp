@@ -5,7 +5,7 @@ std::map<std::string, TimeCostEva::TimerRecord> TimeCostEva::records_;
 void TimeCostEva::PrintAll() {
     LOGI("\033[32m>>> ===== Printing run time =====\033[0m");
     for (const auto& r : records_) {
-        LOGI("> [ {0} ] average time usage: {1} ms , called times: {2}", r.first,
+        LOGI("> [ {} ] average time usage: {:.6f} ms , called times: {}", r.first,
              std::accumulate(r.second.time_usage_in_ms_.begin(), r.second.time_usage_in_ms_.end(), 0.0) /
                  double(r.second.time_usage_in_ms_.size()),
              r.second.time_usage_in_ms_.size());
