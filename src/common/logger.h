@@ -146,29 +146,22 @@ public:
     Logger() = default;
     ~Logger()
     {
-        if (m_logger)
+        for (const auto &name : m_logger_name)
         {
-            m_logger->flush();
-            // spdlog::drop(LOG_TOPIC);
-        }
-
-        for (const auto &evaluate_logge : m_evaluate_loggers)
-        {
-            if (evaluate_logge.second)
+            if (spdlog::get(name))
             {
-                evaluate_logge.second->flush();
-                // spdlog::drop(evaluate_logge.first);
+                spdlog::get(name)->flush();
+                spdlog::drop(name);
             }
         }
-
         spdlog::shutdown(); 
-        m_thread_pool.reset();
     }
 
     bool init() {
         auto &&function = [&]() {
-            // 创建线程池
-            m_thread_pool = std::make_shared<spdlog::details::thread_pool>(8192, 2); // 队列大小，工作线程
+            // 初始化内存池
+            spdlog::init_thread_pool(8192, 1);
+
             // 获取日志目录
             std::string log_file_name = Singleton<LoggerManager>::instance().get_log_file_name();
 
@@ -179,7 +172,7 @@ public:
                 auto rotating_sink = std::make_shared<rotating_sink_t>(log_file_name + "/" + LOG_TOPIC + ".log", LOG_FILE_SIZE, LOG_ROTATION);
                 std::vector<spdlog::sink_ptr> sinks{stdout_sink, rotating_sink};
                 // 构建日志器
-                m_logger = std::make_shared<spdlog::async_logger>(LOG_TOPIC, sinks.begin(), sinks.end(), m_thread_pool, spdlog::async_overflow_policy::block);
+                m_logger = std::make_shared<spdlog::async_logger>(LOG_TOPIC, sinks.begin(), sinks.end(), spdlog::thread_pool(), spdlog::async_overflow_policy::block);
                 m_logger->set_pattern(PATTERN);
                 if (is_debug_mode()) {
                     m_logger->set_level(spdlog::level::debug);
@@ -187,6 +180,8 @@ public:
                     m_logger->set_level(spdlog::level::info);
                 }
                 m_logger->flush_on(LOG_FLUSH_ON);
+                m_logger_name.push_back(LOG_TOPIC);
+                spdlog::register_logger(m_logger);
             }
 
             // 创建评估日志
@@ -209,16 +204,11 @@ public:
 
     inline void flush()
     {
-        if (m_logger)
+        for (const auto &name : m_logger_name)
         {
-            m_logger->flush();
-        }
-
-        for (const auto &evaluate_logge : m_evaluate_loggers)
-        {
-            if (evaluate_logge.second)
+            if (spdlog::get(name))
             {
-                evaluate_logge.second->flush();
+                spdlog::get(name)->flush();
             }
         }
     }
@@ -304,14 +294,13 @@ public:
     template <typename... Args>
     inline void log_time(const char *fmt, Args... args)
     {
-        if (m_evaluate_loggers[LOG_TIME_TOPIC])
-            m_evaluate_loggers[LOG_TIME_TOPIC]->info(fmt, args...);
+        if(spdlog::get(LOG_TIME_TOPIC))
+            spdlog::get(LOG_TIME_TOPIC)->info(fmt, args...);
     }
 
 private:
-    std::shared_ptr<spdlog::details::thread_pool> m_thread_pool;
     std::shared_ptr<spdlog::logger> m_logger;
-    std::unordered_map<std::string, std::shared_ptr<spdlog::async_logger>> m_evaluate_loggers;
+    std::vector<std::string> m_logger_name;
 
     using stdout_sink_t = spdlog::sinks::stdout_color_sink_mt;
     using rotating_sink_t = spdlog::sinks::rotating_file_sink_mt;
@@ -352,7 +341,7 @@ private:
         auto logger = std::make_shared<spdlog::async_logger>(
             logger_name,
             file_sink, // 每个Logger绑定自己的文件Sink
-            m_thread_pool, // 共享同一个线程池
+            spdlog::thread_pool(),
             spdlog::async_overflow_policy::block
         );
 
@@ -360,9 +349,8 @@ private:
         logger->set_pattern(EVALOG_PATTERN);
         logger->set_level(spdlog::level::info); 
         logger->flush_on(spdlog::level::info);
-
-        // 将创建的logger添加到管理列表
-        m_evaluate_loggers[logger_name] = logger;
+        spdlog::register_logger(logger);
+        m_logger_name.push_back(logger_name);
         
         return logger;
     }
