@@ -158,7 +158,7 @@ public:
                 spdlog::drop(name);
             }
         }
-        spdlog::shutdown(); 
+        spdlog::shutdown();  // 若工程中其他库使用spdlog或者和ROS2一起使用，需要注释
     }
 
     bool init() {
