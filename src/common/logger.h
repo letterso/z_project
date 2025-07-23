@@ -8,7 +8,11 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
+
+#define ASYNC_MODE
+#ifdef ASYNC_MODE
 #include <spdlog/async.h>
+#endif
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
@@ -159,9 +163,11 @@ public:
 
     bool init() {
         auto &&function = [&]() {
+#ifdef ASYNC_MODE
             // 初始化内存池
             spdlog::init_thread_pool(8192, 1);
-
+            SPDLOG_INFO("[LOGGER] Use Async Mode");
+#endif
             // 获取日志目录
             std::string log_file_name = Singleton<LoggerManager>::instance().get_log_file_name();
 
@@ -171,8 +177,12 @@ public:
                 auto stdout_sink = std::make_shared<stdout_sink_t>();
                 auto rotating_sink = std::make_shared<rotating_sink_t>(log_file_name + "/" + LOG_TOPIC + ".log", LOG_FILE_SIZE, LOG_ROTATION);
                 std::vector<spdlog::sink_ptr> sinks{stdout_sink, rotating_sink};
+#ifdef ASYNC_MODE
                 // 构建日志器
                 m_logger = std::make_shared<spdlog::async_logger>(LOG_TOPIC, sinks.begin(), sinks.end(), spdlog::thread_pool(), spdlog::async_overflow_policy::block);
+#else
+                m_logger = std::make_shared<spdlog::logger>(LOG_TOPIC, sinks.begin(), sinks.end());
+#endif
                 m_logger->set_pattern(PATTERN);
                 if (is_debug_mode()) {
                     m_logger->set_level(spdlog::level::debug);
@@ -330,29 +340,30 @@ private:
         return false;
     }
 
-    std::shared_ptr<spdlog::async_logger> createAndConfigureLogger(
-        const std::string& logger_name,
-        const std::string& filename) {
-
+    void createAndConfigureLogger(
+        const std::string &logger_name,
+        const std::string &filename)
+    {
         // 创建文件 Sink
         auto file_sink = std::make_shared<basic_sink_t>(filename, true);
-        
+
+#ifdef ASYNC_MODE
         // 创建异步 Logger
         auto logger = std::make_shared<spdlog::async_logger>(
             logger_name,
             file_sink, // 每个Logger绑定自己的文件Sink
             spdlog::thread_pool(),
-            spdlog::async_overflow_policy::block
-        );
+            spdlog::async_overflow_policy::block);
+#else
+        auto logger = std::make_shared<spdlog::logger>(logger_name, file_sink);
+#endif
 
         // 应用相同的日志配置
         logger->set_pattern(EVALOG_PATTERN);
-        logger->set_level(spdlog::level::info); 
+        logger->set_level(spdlog::level::info);
         logger->flush_on(spdlog::level::info);
         spdlog::register_logger(logger);
         m_logger_name.push_back(logger_name);
-        
-        return logger;
     }
 };
 
