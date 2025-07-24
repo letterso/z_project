@@ -172,26 +172,26 @@ public:
             std::string log_file_name = Singleton<LoggerManager>::instance().get_log_file_name();
 
             // 创建主日志
-            if(!m_logger){
+            if(!spdlog::get(LOG_TOPIC)){
                 // 创建sinks
                 auto stdout_sink = std::make_shared<stdout_sink_t>();
                 auto rotating_sink = std::make_shared<rotating_sink_t>(log_file_name + "/" + LOG_TOPIC + ".log", LOG_FILE_SIZE, LOG_ROTATION);
                 std::vector<spdlog::sink_ptr> sinks{stdout_sink, rotating_sink};
 #ifdef ASYNC_MODE
                 // 构建日志器
-                m_logger = std::make_shared<spdlog::async_logger>(LOG_TOPIC, sinks.begin(), sinks.end(), spdlog::thread_pool(), spdlog::async_overflow_policy::block);
+                auto logger = std::make_shared<spdlog::async_logger>(LOG_TOPIC, sinks.begin(), sinks.end(), spdlog::thread_pool(), spdlog::async_overflow_policy::block);
 #else
-                m_logger = std::make_shared<spdlog::logger>(LOG_TOPIC, sinks.begin(), sinks.end());
+                auto logger = std::make_shared<spdlog::logger>(LOG_TOPIC, sinks.begin(), sinks.end());
 #endif
-                m_logger->set_pattern(PATTERN);
+                logger->set_pattern(PATTERN);
                 if (is_debug_mode()) {
-                    m_logger->set_level(spdlog::level::debug);
+                    logger->set_level(spdlog::level::debug);
                 } else {
-                    m_logger->set_level(spdlog::level::info);
+                    logger->set_level(spdlog::level::info);
                 }
-                m_logger->flush_on(LOG_FLUSH_ON);
+                logger->flush_on(LOG_FLUSH_ON);
                 m_logger_name.push_back(LOG_TOPIC);
-                spdlog::register_logger(m_logger);
+                spdlog::register_logger(logger);
             }
 
             // 创建评估日志
@@ -226,9 +226,9 @@ public:
     template <typename... Args>
     inline void log_critical(const char *fmt, Args... args)
     {
-        if (m_logger)
+        if (spdlog::get(LOG_TOPIC))
         {
-            m_logger->critical(fmt, args...);
+            spdlog::get(LOG_TOPIC)->critical(fmt, args...);
         }
         else
         {
@@ -239,9 +239,9 @@ public:
     template <typename... Args>
     inline void log_error(const char *fmt, Args... args)
     {
-        if (m_logger)
+        if (spdlog::get(LOG_TOPIC))
         {
-            m_logger->error(fmt, args...);
+            spdlog::get(LOG_TOPIC)->error(fmt, args...);
         }
         else
         {
@@ -252,9 +252,9 @@ public:
     template <typename... Args>
     inline void log_warn(const char *fmt, Args... args)
     {
-        if (m_logger)
+        if (spdlog::get(LOG_TOPIC))
         {
-            m_logger->warn(fmt, args...);
+            spdlog::get(LOG_TOPIC)->warn(fmt, args...);
         }
         else
         {
@@ -265,9 +265,9 @@ public:
     template <typename... Args>
     inline void log_info(const char *fmt, Args... args)
     {
-        if (m_logger)
+        if (spdlog::get(LOG_TOPIC))
         {
-            m_logger->info(fmt, args...);
+            spdlog::get(LOG_TOPIC)->info(fmt, args...);
         }
         else
         {
@@ -278,9 +278,9 @@ public:
     template <typename... Args>
     inline void log_debug(const char *fmt, Args... args)
     {
-        if (m_logger)
+        if (spdlog::get(LOG_TOPIC))
         {
-            m_logger->debug(fmt, args...);
+            spdlog::get(LOG_TOPIC)->debug(fmt, args...);
         }
         else
         {
@@ -291,9 +291,9 @@ public:
     template <typename... Args>
     inline void log_trace(const char *fmt, Args... args)
     {
-        if (m_logger)
+        if (spdlog::get(LOG_TOPIC))
         {
-            m_logger->trace(fmt, args...);
+            spdlog::get(LOG_TOPIC)->trace(fmt, args...);
         }
         else
         {
@@ -309,7 +309,6 @@ public:
     }
 
 private:
-    std::shared_ptr<spdlog::logger> m_logger;
     std::vector<std::string> m_logger_name;
 
     using stdout_sink_t = spdlog::sinks::stdout_color_sink_mt;
