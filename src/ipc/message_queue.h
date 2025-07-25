@@ -1,5 +1,5 @@
-#ifndef __MASSAGE_QUEUE_H__
-#define __MASSAGE_QUEUE_H__
+#ifndef __MESSAGE_QUEUE_H__
+#define __MESSAGE_QUEUE_H__
 
 class MessageQueue {
 private:
@@ -44,4 +44,4 @@ public:
     bool recv(Message &msg);
 };
 
-#endif // __MASSAGE_QUEUE_H__
+#endif // __MESSAGE_QUEUE_H__

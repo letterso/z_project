@@ -39,6 +39,14 @@ void TimeCostEva::DumpIntoFile() {
     }
 }
 
+void TimeCostEva::SetEvaluatet(const std::string& func_name, const double& time_usage) {
+    if (records_.find(func_name) != records_.end()) {
+        records_[func_name].time_usage_in_ms_.emplace_back(time_usage);
+    } else {
+        records_.insert({func_name, TimerRecord(func_name, time_usage)});
+    }
+}
+
 double TimeCostEva::GetMeanTime(const std::string& func_name) {
     if (records_.find(func_name) == records_.end()) {
         return 0.0;

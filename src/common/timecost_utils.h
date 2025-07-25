@@ -34,9 +34,9 @@ public:
     */
     template <class F>
     static void Evaluate(F&& func, const std::string& func_name) {
-        auto t1 = std::chrono::high_resolution_clock::now();
+        auto t1 = std::chrono::steady_clock::now();
         std::forward<F>(func)();
-        auto t2 = std::chrono::high_resolution_clock::now();
+        auto t2 = std::chrono::steady_clock::now();
         auto time_used = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count() * 1000;
 
         if (records_.find(func_name) != records_.end()) {
@@ -45,6 +45,9 @@ public:
             records_.insert({func_name, TimerRecord(func_name, time_used)});
         }
     }
+
+    /// print the run time
+    static void SetEvaluatet(const std::string& func_name, const double& time_usage);
 
     /// print the run time
     static void PrintAll();
@@ -76,18 +79,18 @@ public:
 
     void tic()
     {
-        start = std::chrono::system_clock::now();
+        start = std::chrono::steady_clock::now();
     }
 
     double toc()
     {
-        end = std::chrono::system_clock::now();
+        end = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed_seconds = end - start;
         return elapsed_seconds.count() * 1000;
     }
 
 private:
-    std::chrono::time_point<std::chrono::system_clock> start, end;
+    std::chrono::time_point<std::chrono::steady_clock> start, end;
 };
 
 // raii机制实现的耗时评估
@@ -101,10 +104,10 @@ public:
     };
     explicit TimeCost(const std::string &m_tag, const Unit &unit = Unit::MS)
         : m_tag(m_tag), m_unit(unit),
-            m_start_time(std::chrono::high_resolution_clock::now()) {}
+            m_start_time(std::chrono::steady_clock::now()) {}
 
     ~TimeCost() {
-        auto end_time = std::chrono::high_resolution_clock::now();
+        auto end_time = std::chrono::steady_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - m_start_time).count();
         if (Unit::S == m_unit) {
             LOGI("[{}], cost: {} s", m_tag, duration / (1000.0 * 1000.0 * 1000.0));
@@ -117,10 +120,24 @@ public:
         }
     }
 
+    double GetTime(){
+        auto end_time = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - m_start_time).count();
+        if (Unit::S == m_unit) {
+            return duration / (1000.0 * 1000.0 * 1000.0);
+        } else if (Unit::MS == m_unit) {
+            return duration / (1000.0 * 1000.0 );
+        } else if (Unit::NS == m_unit) {
+            return duration / 1000.0;
+        } else {
+            return duration;
+        }
+    }
+
 private:
     std::string m_tag;
     Unit m_unit;
-    std::chrono::time_point<std::chrono::high_resolution_clock> m_start_time;
+    std::chrono::time_point<std::chrono::steady_clock> m_start_time;
 };
 
 #endif  // __TIMERCOST_UTILS_H__

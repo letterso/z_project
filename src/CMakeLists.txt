@@ -2,6 +2,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 find_package(Threads REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(OpenCV REQUIRED)
 
 # common
 add_library(COMMON_LIBS SHARED
@@ -13,7 +14,11 @@ target_include_directories(COMMON_LIBS PUBLIC
 target_link_libraries(COMMON_LIBS PUBLIC
         3rdparty::yaml-cpp
         3rdparty::spdlog
-        Threads::Threads)
+        Threads::Threads
+	${OpenCV_LIBS})
+
+target_precompile_headers(COMMON_LIBS PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/pch.h)
 
 # ipc
 add_library(IPC_LIBS SHARED

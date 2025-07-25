@@ -1,7 +1,7 @@
 #ifndef __LOGGER_H__
 #define __LOGGER_H__
 
-#include "make_unique.h"
+#include <memory>
 #include "singleton.h"
 
 #include <spdlog/spdlog.h>
@@ -14,11 +14,9 @@
 #include <spdlog/async.h>
 #endif
 
-#include <Eigen/Core>
-#include <Eigen/Geometry>
-
 #include <memory>
 #include <filesystem>
+#include <cstdlib>
 
 // normal日志
 #define LOG_DIR "./log"                             // 日志根目录
@@ -35,21 +33,6 @@
 
 // 周期
 #define LOG_MAX_DAY 7                        // 最大保存天数
-
-// Custom formatter for Eigen::DenseBase types
-template<typename T>
-struct fmt::formatter<T, std::enable_if_t<std::is_base_of<Eigen::DenseBase<T>, T>::value, char>> {
-    constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
-        return ctx.end();
-    }
-
-    template <typename FormatContext>
-    auto format(const Eigen::DenseBase<T>& mat, FormatContext& ctx) const -> decltype(ctx.out()) {
-        std::stringstream ss;
-        ss << mat;
-        return fmt::format_to(ctx.out(), "{}", ss.str());
-    }
-};
 
 class LoggerManager {
 private:
@@ -158,7 +141,7 @@ public:
                 spdlog::drop(name);
             }
         }
-        spdlog::shutdown();  // 若工程中其他库使用spdlog或者和ROS2一起使用，需要注释
+        // spdlog::shutdown();  // 若工程中其他库使用spdlog或者和ROS2一起使用，需要注释
     }
 
     bool init() {
@@ -316,25 +299,21 @@ private:
     using basic_sink_t = spdlog::sinks::basic_file_sink_mt;
 
     static bool is_debug_mode() {
-        char *var = getenv("debug");
-        if (nullptr == var) {
-            return false;
-        }
-        if (0 == strcmp(var, "on")) {
-            SPDLOG_INFO("[LOGGER] debug mode on");
-            return true;
+        if (const char *var = std::getenv("debug")) {
+            if (std::string(var) == "on") {
+                SPDLOG_INFO("[LOGGER] debug mode on");
+                return true;
+            }
         }
         return false;
     }
 
     static bool is_evaluate_mode() {
-        char *var = getenv("evaluate");
-        if (nullptr == var) {
-            return false;
-        }
-        if (0 == strcmp(var, "on")) {
-            SPDLOG_INFO("[LOGGER] evaluate mode on");
-            return true;
+        if (const char *var = std::getenv("evaluate")) {
+            if (std::string(var) == "on") {
+                SPDLOG_INFO("[LOGGER] evaluate mode on");
+                return true;
+            }
         }
         return false;
     }

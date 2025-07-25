@@ -26,7 +26,9 @@ public:
     , m_interval_ms(ms)
     , m_callback(callback) {}
 
-    ~Timer() {}
+    ~Timer() {
+        stop();
+    }
 
     void start() {
         if (m_is_running) {
