@@ -1,7 +1,7 @@
 #ifndef __MESSAGE_QUEUE_H__
 #define __MESSAGE_QUEUE_H__
 
-class MessageQueue {
+class __attribute__((visibility("default"))) MessageQueue {
 private:
     int _msgid;
 
