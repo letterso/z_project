@@ -58,6 +58,53 @@ bash .githook.sh
 
 install和pack时要注意修改`APP_ROOT_DIR`路径，pack时该变量设置为打包安装路径
 
+### 静态检查
+
+使用 [Cppcheck](https://cppcheck.sourceforge.io/) 对项目C++代码进行静态分析，自动排除第三方库（ROS、Eigen3、PCL、Boost等）的检查。
+
+- 使用
+
+  ```bash
+  cd build
+  cmake ..
+  
+  # 方式1：生成完整报告（推荐）
+  make all_cppcheck_reports
+  
+  # 方式2：只运行静态检查
+  make run_cppcheck
+  
+  # 方式3：只生成HTML报告（需先运行cppcheck）
+  make generate_cppcheck_html
+  
+  # 或者
+  cmake --build . --target run_cppcheck --parallel           # 进行静态检查
+  cmake --build . --target all_cppcheck_reports --parallel   # 进行静态检查并生成html报告
+  ```
+
+- 查看结果
+
+  - **XML报告**：`build/cppcheck_report.xml`
+
+  - **HTML报告**：`build/cppcheck_report.html` （推荐，可在浏览器中打开）
+
+  - **过滤后的编译数据库**：`build/compile_commands_filtered.json`
+
+
+- 配置说明
+
+  静态检查配置位于 `cmake/modules/static_check.cmake`，已配置为：
+
+  - ✅ 只检查 `src/` 和 `app/` 目录下的项目代码
+
+  - ✅ 排除所有第三方库（ROS、Eigen3、PCL、TBB、Boost、OpenCV等）
+
+  - ✅ 抑制配置相关的信息级别警告（noValidConfiguration、missingIncludeSystem）
+
+  - ✅ 使用C++17标准进行检查
+  
+  如需修改检查范围或规则，编辑 `cmake/modules/static_check.cmake` 和 `cmake/modules/filter_compile_commands.py`。
+
 ## 功能模块说明
 
 ### `src` - 核心库
