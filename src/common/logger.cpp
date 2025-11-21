@@ -138,7 +138,7 @@ bool Logger::init() {
     }
 }
 
-void Logger::flush() {
+void Logger::flush() const {
     for (const auto &name : m_logger_name) {
         if (spdlog::get(name)) {
             spdlog::get(name)->flush();

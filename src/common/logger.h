@@ -61,7 +61,7 @@ public:
     Logger &operator=(const Logger &) = delete;
 
     bool init();
-    void flush();
+    void flush() const;
 
     template <typename... Args>
     inline void log_critical(const char *fmt, Args... args){
