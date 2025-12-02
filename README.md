@@ -58,6 +58,40 @@ bash .githook.sh
 
 install和pack时要注意修改`APP_ROOT_DIR`路径，pack时该变量设置为打包安装路径
 
+### 打包配置
+
+DEB 包打包配置位于 `cmake/pack.cmake`，关键参数如下：
+
+| 参数 | 说明 |
+| :--- | :--- |
+| `APP_VERSION` | 应用版本号，遵循 X.Y.Z 格式 |
+| `PKG_NAME` | 包名，格式：`cn.z.${APP_NAME}` |
+| `CPACK_PACKAGING_INSTALL_PREFIX` | 安装路径，默认：`$HOME/.Workspace/${PKG_NAME}` |
+| `postinst` | DEB 安装后执行的脚本（如重载服务） |
+
+**打包流程：**
+
+```bash
+make build      # 编译程序
+make install    # 安装到 install/ 目录
+make pack       # 生成 .deb 包
+```
+
+**查看 DEB 包信息：**
+
+```bash
+dpkg -I <package.deb>           # 查看包元数据
+dpkg -c <package.deb>           # 查看包内容
+dpkg -l | grep cn.z.zproject    # 检查是否已安装
+```
+
+**安装和卸载：**
+
+```bash
+sudo dpkg -i <package.deb>      # 安装
+sudo dpkg -r cn.z.zproject      # 卸载
+```
+
 ### 静态检查
 
 使用 [Cppcheck](https://cppcheck.sourceforge.io/) 对项目C++代码进行静态分析，自动排除第三方库（ROS、Eigen3、PCL、Boost等）的检查。
