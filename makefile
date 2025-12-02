@@ -35,6 +35,7 @@ test:  ## 编译代码和单元测试
 build: ## 编译代码
 	@cmake -B $(build_dir) \
 		  -DBUILD_DATE=$(build_date) \
+		  -DCMAKE_INSTALL_PREFIX=$(install_dir) \
 		  -DCMAKE_BUILD_TYPE=$(build_type)
 	@cmake --build $(build_dir) --parallel
 

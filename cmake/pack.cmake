@@ -10,8 +10,6 @@ set(DESCRIPTION "模板工程")
 set(APP_NAME "${PROJECT_NAME}")
 set(PKG_NAME "cn.z.${APP_NAME}")
 set(ARCH "amd64")
-# set(APP_ROOT_DIR "$ENV{HOME}/.Workspace/${PKG_NAME}")
-set(APP_ROOT_DIR "${TOP}/install")
 set(CPACK_GENERATOR "DEB")
 set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE ${ARCH})
 set(CPACK_PACKAGE_NAME "${PKG_NAME}")
@@ -19,9 +17,16 @@ set(CPACK_PACKAGE_VERSION "${APP_VERSION}")
 set(CPACK_PACKAGE_CONTACT "z@gmail.com")
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "z@gmail.com")
 set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "${DESCRIPTION}")
-set(CPACK_PACKAGING_INSTALL_PREFIX "${APP_ROOT_DIR}")
 set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
-set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${TOP}/postinst")
+if(EXISTS "${TOP}/postinst")
+  set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${TOP}/postinst")
+else()
+  message(WARNING "postinst file not found at ${TOP}/postinst")
+endif()
+if(NOT DEFINED CPACK_PACKAGING_INSTALL_PREFIX)
+  set(CPACK_PACKAGING_INSTALL_PREFIX $ENV{HOME}/.Workspace/${PKG_NAME})
+endif()
+message(STATUS "CPACK_PACKAGING_INSTALL_PREFIX: ${CPACK_PACKAGING_INSTALL_PREFIX}")
 
 # pack specific file
 # install(
@@ -29,10 +34,12 @@ set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${TOP}/postinst")
 #     DESTINATION ${APP_ROOT_DIR}/bin
 #     USE_SOURCE_PERMISSIONS
 # )
+
 # install(
 #     FILES ${TOP}/config/params.yaml
 #     DESTINATION ${APP_ROOT_DIR}/config
 # )
+
 # install(
 #     FILES ${TOP}/service/z-zproject.service
 #     DESTINATION /lib/systemd/system
@@ -41,24 +48,37 @@ set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${TOP}/postinst")
 # pack 3rdparty file
 install(
   DIRECTORY ${TOP}/3rdparty/yaml-cpp/lib/
-  DESTINATION ${APP_ROOT_DIR}/lib
+  DESTINATION lib
+  COMPONENT main
 )
 
 # pack all file
 install(
   DIRECTORY ${CMAKE_BINARY_DIR}/bin/
-  DESTINATION ${APP_ROOT_DIR}/bin
+  DESTINATION bin
   USE_SOURCE_PERMISSIONS
+  COMPONENT main
 )
 install(
   DIRECTORY ${CMAKE_BINARY_DIR}/lib/
-  DESTINATION ${APP_ROOT_DIR}/lib
+  DESTINATION lib
+  COMPONENT main
   FILES_MATCHING PATTERN "*.so"        # 可选：只拷贝 .so 文件
   # PATTERN "*.a" EXCLUDE              # 可选：排除 .a 文件
 )
 install(
   DIRECTORY ${TOP}/config/
-  DESTINATION ${APP_ROOT_DIR}/config
+  DESTINATION config
+  COMPONENT main
 )
 
+# Install postinst script for DEB package
+install(
+  FILES ${TOP}/postinst
+  DESTINATION .
+  COMPONENT main
+  PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+)
+
+set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_BINARY_DIR};${PROJECT_NAME};main;/")
 include(CPack)
