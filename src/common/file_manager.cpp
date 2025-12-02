@@ -38,13 +38,8 @@ fs::path FileManager::GetDirectory(const fs::path& file_path) const noexcept {
     }
 }
 
-std::optional<fs::path> FileManager::GetConfigFilePath(std::string_view filename) const noexcept {
+std::optional<fs::path> FileManager::GetConfigDirectory() const noexcept {
     try {
-        if (filename.empty()) {
-            spdlog::warn("[FILE_MANAGER] Empty filename provided");
-            return std::nullopt;
-        }
-
         // Get the executable path
         auto exe_path = GetExecutablePath();
         if (!exe_path.has_value()) {
@@ -54,37 +49,57 @@ std::optional<fs::path> FileManager::GetConfigFilePath(std::string_view filename
 
         // Get the directory of the executable (bin directory)
         auto exe_dir = GetDirectory(exe_path.value());
-        spdlog::debug("[FILE_MANAGER] Executable directory: {}", exe_dir.string());
-
-        // Go up one level from the executable directory to get the project root
+        
+        // Go up one level from the executable directory to get the install root
         // Assuming structure: <root>/install/bin/<executable>
         auto parent_dir = GetDirectory(exe_dir);
-        spdlog::debug("[FILE_MANAGER] Parent directory: {}", parent_dir.string());
-
-        // Construct the config file path
-        auto config_path = parent_dir / "config" / filename;
-        spdlog::debug("[FILE_MANAGER] Config file path: {}", config_path.string());
-
-        // Canonicalize the path if it exists
-        if (fs::exists(config_path)) {
-            return fs::canonical(config_path);
+        
+        // Construct the config directory path
+        auto config_dir = parent_dir / "config";
+        spdlog::debug("[FILE_MANAGER] Config directory: {}", config_dir.string());
+        
+        // Create the directory if it doesn't exist
+        if (!fs::exists(config_dir)) {
+            fs::create_directories(config_dir);
+            spdlog::info("[FILE_MANAGER] Created config directory: {}", config_dir.string());
         }
-        return config_path;
+        
+        return fs::canonical(config_dir);
     } catch (const std::exception& e) {
-        spdlog::error("[FILE_MANAGER] Error getting config file path: {}", e.what());
+        spdlog::error("[FILE_MANAGER] Error getting config directory: {}", e.what());
         return std::nullopt;
     }
 }
 
-bool FileManager::ConfigFileExists(std::string_view filename) const noexcept {
+std::optional<fs::path> FileManager::GetLogDirectory() const noexcept {
     try {
-        auto config_path = GetConfigFilePath(filename);
-        if (!config_path.has_value()) {
-            return false;
+        // Get the executable path
+        auto exe_path = GetExecutablePath();
+        if (!exe_path.has_value()) {
+            spdlog::error("[FILE_MANAGER] Could not determine executable path");
+            return std::nullopt;
         }
-        return fs::exists(config_path.value());
+
+        // Get the directory of the executable (bin directory)
+        auto exe_dir = GetDirectory(exe_path.value());
+        
+        // Go up one level from the executable directory to get the install root
+        // Assuming structure: <root>/install/bin/<executable>
+        auto parent_dir = GetDirectory(exe_dir);
+        
+        // Construct the log directory path
+        auto log_dir = parent_dir / "log";
+        spdlog::debug("[FILE_MANAGER] Log directory: {}", log_dir.string());
+        
+        // Create the directory if it doesn't exist
+        if (!fs::exists(log_dir)) {
+            fs::create_directories(log_dir);
+            spdlog::info("[FILE_MANAGER] Created log directory: {}", log_dir.string());
+        }
+        
+        return fs::canonical(log_dir);
     } catch (const std::exception& e) {
-        spdlog::error("[FILE_MANAGER] Error checking config file existence: {}", e.what());
-        return false;
+        spdlog::error("[FILE_MANAGER] Error getting log directory: {}", e.what());
+        return std::nullopt;
     }
 }

@@ -9,7 +9,6 @@
 #include <spdlog/spdlog.h>
 
 // normal日志
-#define LOG_DIR "./log"                             // 日志根目录
 #define LOG_TOPIC "node"                            // 日志tag
 #define LOG_FILE_SIZE 1024 * 1024 * 5               // 5MB
 #define LOG_ROTATION 3                              // 日志文件满3个时开始滚动日志
@@ -22,7 +21,7 @@
 #define EVALOG_PATTERN "%v"                  // 日志样式
 
 // 周期
-#define LOG_MAX_DAY 7                        // 最大保存天数
+#define LOG_MAX_DAY 30                        // 最大保存天数
 
 class LoggerManager {
 private:

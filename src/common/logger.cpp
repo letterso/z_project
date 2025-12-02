@@ -1,5 +1,6 @@
 #include "logger.h"
 #include "singleton.h"
+#include "file_manager.h"
 
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/rotating_file_sink.h>
@@ -17,6 +18,15 @@
 // --- LoggerManager Implementation ---
 
 void LoggerManager::create_directories() {
+    // Get the log directory from FileManager
+    auto log_dir_opt = FileManager::GetInstance().GetLogDirectory();
+    if (!log_dir_opt.has_value()) {
+        spdlog::error("[LOGGER] Failed to get log directory from FileManager");
+        return;
+    }
+    
+    std::string log_dir_str = log_dir_opt.value().string();
+    
     // 获取当前日期
     auto current_time = std::chrono::system_clock::now();
     std::time_t time_t_format = std::chrono::system_clock::to_time_t(current_time);
@@ -24,7 +34,7 @@ void LoggerManager::create_directories() {
 
     // 使用年月日创建一级目录
     std::ostringstream date_oss;
-    date_oss << LOG_DIR << "/" << std::put_time(&tm_format, "%Y%m%d");
+    date_oss << log_dir_str << "/" << std::put_time(&tm_format, "%Y%m%d");
     std::string date_file_name = date_oss.str();
     if (!std::filesystem::is_directory(date_file_name) || !std::filesystem::exists(date_file_name)) {
         std::filesystem::create_directories(date_file_name);
@@ -40,34 +50,45 @@ void LoggerManager::create_directories() {
 }
 
 void LoggerManager::delete_directories() {
-    for (auto &entry : std::filesystem::directory_iterator(LOG_DIR)) {
-        if (entry.is_directory()) {
-            // 获取文件夹名称
-            std::string folder_name = entry.path().filename().string();
+    // Get the log directory from FileManager
+    auto log_dir_opt = FileManager::GetInstance().GetLogDirectory();
+    if (!log_dir_opt.has_value()) {
+        spdlog::error("[LOGGER] Failed to get log directory from FileManager");
+        return;
+    }
+    
+    try {
+        for (auto &entry : std::filesystem::directory_iterator(log_dir_opt.value())) {
+            if (entry.is_directory()) {
+                // 获取文件夹名称
+                std::string folder_name = entry.path().filename().string();
 
-            // 确保文件夹名符合日期格式
-            if (folder_name.size() == 8) { // YYYYMMDD
-                std::tm folder_time = {};
-                std::istringstream ss(folder_name);
-                ss >> std::get_time(&folder_time, "%Y%m%d");
+                // 确保文件夹名符合日期格式
+                if (folder_name.size() == 8) { // YYYYMMDD
+                    std::tm folder_time = {};
+                    std::istringstream ss(folder_name);
+                    ss >> std::get_time(&folder_time, "%Y%m%d");
 
-                if (ss.fail()) {
-                    spdlog::error("[LOGGER] date parsing failed: {}", folder_name);
-                    continue;
-                }
+                    if (ss.fail()) {
+                        spdlog::error("[LOGGER] date parsing failed: {}", folder_name);
+                        continue;
+                    }
 
-                // 将文件夹时间转换为time_t并计算日期差
-                std::time_t folder_time_t = std::mktime(&folder_time);
-                std::time_t now = std::time(nullptr);
-                double days_old = std::difftime(now, folder_time_t) / (60 * 60 * 24);
+                    // 将文件夹时间转换为time_t并计算日期差
+                    std::time_t folder_time_t = std::mktime(&folder_time);
+                    std::time_t now = std::time(nullptr);
+                    double days_old = std::difftime(now, folder_time_t) / (60 * 60 * 24);
 
-                // 删除超过最大保存天数的文件夹
-                if (days_old >= LOG_MAX_DAY) {
-                    std::filesystem::remove_all(entry.path());
-                    spdlog::info("[LOGGER] remove old directories: {}", entry.path().string());
+                    // 删除超过最大保存天数的文件夹
+                    if (days_old >= LOG_MAX_DAY) {
+                        std::filesystem::remove_all(entry.path());
+                        spdlog::info("[LOGGER] remove old directories: {}", entry.path().string());
+                    }
                 }
             }
         }
+    } catch (const std::exception& e) {
+        spdlog::error("[LOGGER] Error deleting old directories: {}", e.what());
     }
 }
 

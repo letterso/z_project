@@ -46,18 +46,18 @@ public:
     fs::path GetDirectory(const fs::path& file_path) const noexcept;
 
     /**
-     * @brief Get the absolute path of a config file
-     * @param filename The name of the config file (e.g., "params.yaml")
-     * @return Optional containing the absolute path to the config file, or std::nullopt if failed
+     * @brief Get the absolute path of the config directory
+     * @return Optional containing the absolute path to the config directory, or std::nullopt if failed
+     * @note Directory structure: <root>/install/config
      */
-    std::optional<fs::path> GetConfigFilePath(std::string_view filename) const noexcept;
+    std::optional<fs::path> GetConfigDirectory() const noexcept;
 
     /**
-     * @brief Check if a config file exists
-     * @param filename The name of the config file
-     * @return true if the config file exists, false otherwise
+     * @brief Get the absolute path of the log directory
+     * @return Optional containing the absolute path to the log directory, or std::nullopt if failed
+     * @note Directory structure: <root>/install/log
      */
-    bool ConfigFileExists(std::string_view filename) const noexcept;
+    std::optional<fs::path> GetLogDirectory() const noexcept;
 };
 
 #endif // __FILE_MANAGER_H__
