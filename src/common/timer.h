@@ -15,126 +15,158 @@
 #include <cerrno>
 #include <iostream>
 
+/**
+ * @brief RAII wrapper for file descriptors
+ */
+class FileDescriptor {
+public:
+    FileDescriptor() : fd_(-1) {}
+    explicit FileDescriptor(int fd) : fd_(fd) {}
+
+    ~FileDescriptor() {
+        close();
+    }
+
+    // Delete copy operations
+    FileDescriptor(const FileDescriptor&) = delete;
+    FileDescriptor& operator=(const FileDescriptor&) = delete;
+
+    // Move operations
+    FileDescriptor(FileDescriptor&& other) noexcept : fd_(other.fd_) {
+        other.fd_ = -1;
+    }
+
+    FileDescriptor& operator=(FileDescriptor&& other) noexcept {
+        if (this != &other) {
+            close();
+            fd_ = other.fd_;
+            other.fd_ = -1;
+        }
+        return *this;
+    }
+
+    int get() const { return fd_; }
+    bool is_valid() const { return fd_ != -1; }
+
+    void reset(int fd = -1) {
+        close();
+        fd_ = fd;
+    }
+
+    int release() {
+        int fd = fd_;
+        fd_ = -1;
+        return fd;
+    }
+
+private:
+    void close() {
+        if (fd_ != -1) {
+            ::close(fd_);
+            fd_ = -1;
+        }
+    }
+
+    int fd_;
+};
+
+/**
+ * @brief High-precision timer using timerfd + epoll
+ */
 class Timer {
 public:
     using TaskCallback = std::function<void(void)>;
-    Timer(uint64_t ms, const TaskCallback &callback)
-    : m_is_running(false)
-    , m_timer_fd(-1)
-    , m_epoll_fd(-1)
-    , m_wakeup_fd(-1)
-    , m_interval_ms(ms)
-    , m_callback(callback) {}
+
+    Timer(uint64_t ms, const TaskCallback& callback)
+        : is_running_(false)
+        , interval_ms_(ms)
+        , callback_(callback) {}
 
     ~Timer() {
         stop();
     }
 
     void start() {
-        if (m_is_running) {
+        if (is_running_.load()) {
             return;
         }
 
-        // 创建 timerfd
-        m_timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
-        if (m_timer_fd == -1) {
+        // Create timerfd
+        timer_fd_.reset(timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC));
+        if (!timer_fd_.is_valid()) {
             throw std::system_error(errno, std::generic_category(), "timerfd_create");
         }
 
-        // 创建 wakeup eventfd
-        m_wakeup_fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
-        if (m_wakeup_fd == -1) {
-            close(m_timer_fd);
+        // Create wakeup eventfd
+        wakeup_fd_.reset(eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC));
+        if (!wakeup_fd_.is_valid()) {
             throw std::system_error(errno, std::generic_category(), "eventfd");
         }
 
-        // 设置定时器间隔
+        // Set timer interval
         struct itimerspec its;
         memset(&its, 0, sizeof(its));
-        uint64_t ms = m_interval_ms;
+        uint64_t ms = interval_ms_;
         its.it_interval.tv_sec = ms / 1000;
         its.it_interval.tv_nsec = (ms % 1000) * 1000000;
         its.it_value = its.it_interval;
-        if (timerfd_settime(m_timer_fd, 0, &its, nullptr) == -1) {
-            close(m_timer_fd);
-            close(m_wakeup_fd);
+        if (timerfd_settime(timer_fd_.get(), 0, &its, nullptr) == -1) {
             throw std::system_error(errno, std::generic_category(), "timerfd_settime");
         }
 
-        // 创建 epoll 实例并监控 timerfd 和 wakeup_fd
-        m_epoll_fd = epoll_create1(EPOLL_CLOEXEC); // 进程被替换时会关闭文件描述符
-        if (m_epoll_fd == -1) {
-            close(m_timer_fd);
-            close(m_wakeup_fd);
+        // Create epoll instance
+        epoll_fd_.reset(epoll_create1(EPOLL_CLOEXEC));
+        if (!epoll_fd_.is_valid()) {
             throw std::system_error(errno, std::generic_category(), "epoll_create1");
         }
 
+        // Add timer_fd to epoll
         struct epoll_event ev;
-        ev.events = EPOLLIN | EPOLLET; // 可读+边缘触发
-        ev.data.fd = m_timer_fd;
-        if (epoll_ctl(m_epoll_fd, EPOLL_CTL_ADD, m_timer_fd, &ev) == -1) {
-            close(m_timer_fd);
-            close(m_wakeup_fd);
-            close(m_epoll_fd);
+        ev.events = EPOLLIN | EPOLLET;
+        ev.data.fd = timer_fd_.get();
+        if (epoll_ctl(epoll_fd_.get(), EPOLL_CTL_ADD, timer_fd_.get(), &ev) == -1) {
             throw std::system_error(errno, std::generic_category(), "epoll_ctl add timer_fd");
         }
 
-        ev.data.fd = m_wakeup_fd;
-        if (epoll_ctl(m_epoll_fd, EPOLL_CTL_ADD, m_wakeup_fd, &ev) == -1) {
-            close(m_timer_fd);
-            close(m_wakeup_fd);
-            close(m_epoll_fd);
+        // Add wakeup_fd to epoll
+        ev.data.fd = wakeup_fd_.get();
+        if (epoll_ctl(epoll_fd_.get(), EPOLL_CTL_ADD, wakeup_fd_.get(), &ev) == -1) {
             throw std::system_error(errno, std::generic_category(), "epoll_ctl add wakeup_fd");
         }
 
-        m_is_running = true;
+        is_running_.store(true);
 
-        // 启动线程
-        m_thread = std::thread([this]() {
-
-            // 提升线程优先级（需要权限），作用不大
-            // struct sched_param param;
-            // param.sched_priority = sched_get_priority_max(SCHED_FIFO);
-            // if (pthread_setschedparam(pthread_self(), SCHED_FIFO, &param)) {
-            //     perror("Warning: Failed to set real-time priority");
-            // }
-
-            // 绑定core
-            // cpu_set_t cpu_set;
-            // CPU_ZERO(&cpu_set);
-            // CPU_SET(3, &cpu_set);
-            // pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_set);
-            // cpu_set_t cpu_get;
-            // if (pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_get) != 0) {
-            //     perror("Failed to get CPU affinity");
-            // }
-
+        // Start worker thread
+        thread_ = std::thread([this]() {
             const int MAX_EVENTS = 2;
             struct epoll_event events[MAX_EVENTS];
 
-            while (m_is_running) {
-                int nfds = epoll_wait(m_epoll_fd, events, MAX_EVENTS, -1);
+            while (is_running_.load()) {
+                int nfds = epoll_wait(epoll_fd_.get(), events, MAX_EVENTS, -1);
                 if (nfds == -1) {
                     if (errno == EINTR) {
                         continue;
                     }
-                    throw std::system_error(errno, std::generic_category(), "epoll_wait");
+                    std::cerr << "[TIMER] epoll_wait error: " << strerror(errno) << std::endl;
+                    break;
                 }
 
                 for (int i = 0; i < nfds; ++i) {
-                    if (events[i].data.fd == m_timer_fd) {
+                    if (events[i].data.fd == timer_fd_.get()) {
                         uint64_t expirations;
-                        ssize_t bytes = read(m_timer_fd, &expirations, sizeof(expirations));
+                        ssize_t bytes = read(timer_fd_.get(), &expirations, sizeof(expirations));
                         if (bytes == sizeof(expirations) && expirations > 0) {
                             for (uint64_t j = 0; j < expirations; ++j) {
-                                m_callback();
+                                if (callback_) {
+                                    callback_();
+                                }
                             }
                         }
-                    } else if (events[i].data.fd == m_wakeup_fd) {
-                        // 读取 wakeup 信号并退出
+                    } else if (events[i].data.fd == wakeup_fd_.get()) {
+                        // Read wakeup signal and exit
                         uint64_t val;
-                        read(m_wakeup_fd, &val, sizeof(val));
-                        break;
+                        read(wakeup_fd_.get(), &val, sizeof(val));
+                        return;
                     }
                 }
             }
@@ -142,43 +174,34 @@ public:
     }
 
     void stop() {
-        if (!m_is_running) {
+        if (!is_running_.exchange(false)) {
             return;
         }
 
-        m_is_running = false;
-
-        // 发送唤醒信号
-        uint64_t val = 1;
-        write(m_wakeup_fd, &val, sizeof(val));
-
-        if (m_thread.joinable()) {
-            m_thread.join();
+        // Send wakeup signal
+        if (wakeup_fd_.is_valid()) {
+            uint64_t val = 1;
+            ssize_t ret = write(wakeup_fd_.get(), &val, sizeof(val));
+            if (ret == -1) {
+                std::cerr << "[TIMER] Failed to write wakeup signal: " << strerror(errno) << std::endl;
+            }
         }
 
-        // 关闭所有描述符
-        if (m_timer_fd != -1) {
-            close(m_timer_fd);
-            m_timer_fd = -1;
+        if (thread_.joinable()) {
+            thread_.join();
         }
-        if (m_wakeup_fd != -1) {
-            close(m_wakeup_fd);
-            m_wakeup_fd = -1;
-        }
-        if (m_epoll_fd != -1) {
-            close(m_epoll_fd);
-            m_epoll_fd = -1;
-        }
+
+        // RAII will automatically close all file descriptors
     }
 
 private:
-    std::atomic<bool> m_is_running;  // 使用原子操作确保线程安全
-    int m_timer_fd;
-    int m_epoll_fd;
-    int m_wakeup_fd;
-    std::thread m_thread;
-    uint64_t m_interval_ms;
-    TaskCallback m_callback;
+    std::atomic<bool> is_running_;
+    FileDescriptor timer_fd_;
+    FileDescriptor epoll_fd_;
+    FileDescriptor wakeup_fd_;
+    std::thread thread_;
+    uint64_t interval_ms_;
+    TaskCallback callback_;
 };
 
 #endif // __TIMER_H__

@@ -3,24 +3,27 @@
  * @Date: 2025-05-24 12:17:47
  * @LastEditors: aurson jassimxiong@gmail.com
  * @LastEditTime: 2025-06-14 13:39:52
- * @Description: 线程安全的队列，数据存储在堆上，适合用于大数据量的场景，比如图像领域
+ * @Description: Thread-safe queue with data stored on heap, suitable for large data scenarios like image processing
  * Copyright (c) 2025 by Aurson, All Rights Reserved.
  */
 #ifndef __SAFE_QUEUE_H__
 #define __SAFE_QUEUE_H__
 
 #include <queue>
-#include <atomic>
 #include <mutex>
 #include <condition_variable>
 
+/**
+ * @brief Thread-safe queue with capacity limit
+ * @tparam T Type of elements stored in the queue
+ */
 template <typename T>
 class SafeQueue
 {
 public:
     explicit SafeQueue(size_t cap = 200)
-        : m_cap(cap),
-          m_stop(false)
+        : capacity_(cap),
+          stopped_(false)
     {
     }
 
@@ -30,107 +33,115 @@ public:
     }
 
     /**
-     * @description: 向队列中添加元素
-     * @param {T} value: 要添加的元素
-     * @return {bool} true: push成功，false: push失败（队列已满）
+     * @brief Push element to queue
+     * @param value Element to push
+     * @return true if push succeeded, false if queue is full
      */
     bool push(const T &value)
     {
-        std::lock_guard<std::mutex> glck(m_mutex);
-        if (m_queue.size() >= m_cap)
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (queue_.size() >= capacity_)
         {
-            // Queue is full;
             return false;
         }
 
-        m_queue.push(value);
-        m_cv.notify_one();
+        queue_.push(value);
+        cv_.notify_one();
         return true;
     }
 
     /**
-     * @description: 尝试从队列中弹出元素
-     * @param {T} value: 弹出的元素
-     * @return {bool} true: pop成功，false: pop失败
+     * @brief Try to pop element from queue (non-blocking)
+     * @param value Output parameter for popped element
+     * @return true if pop succeeded, false if queue is empty
      */
     bool try_pop(T &value)
     {
-        std::lock_guard<std::mutex> glck(m_mutex);
-        if (m_queue.empty())
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (queue_.empty())
         {
             return false;
         }
-        value = std::move(m_queue.front());
-        m_queue.pop();
+        value = std::move(queue_.front());
+        queue_.pop();
         return true;
     }
 
     /**
-     * @description: 使用while循环等待队列不为空防止虚假唤醒（spurious wakeup）
-     *               当多个线程等待在条件变量上时, 一个线程被唤醒后可能发现队列为空，
-     *               所以需要循环检查队列是否为空, 如果队列为空，pop会阻塞当前线程，直到有数据可用或者stop被调用
-     * @return {bool} true: pop成功，false: 停止pop
+     * @brief Pop element from queue (blocking)
+     * @param value Output parameter for popped element
+     * @return true if pop succeeded, false if stopped
+     * @note Blocks until data is available or stop() is called
      */
     bool pop(T &value)
     {
-        std::unique_lock<std::mutex> ulck(m_mutex);
-        while (m_queue.empty() && !m_stop.load())
-        {
-            m_cv.wait(ulck, [this]()
-                      { return !m_queue.empty() || m_stop.load(); }); // 阻塞当前线程，并释放锁
-        }
-        if (m_stop.load())
+        std::unique_lock<std::mutex> lock(mutex_);
+        cv_.wait(lock, [this]() { return !queue_.empty() || stopped_; });
+
+        if (stopped_)
         {
             return false;
         }
-        value = std::move(m_queue.front());
-        m_queue.pop();
+
+        value = std::move(queue_.front());
+        queue_.pop();
         return true;
     }
+
     /**
-     * @description: 停止队列的操作
-     * @return {void}
+     * @brief Stop queue operations
      */
     void stop()
     {
-        if (m_stop.load())
         {
-            return;
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (stopped_)
+            {
+                return;
+            }
+            stopped_ = true;
         }
-        m_stop.store(true);
-        m_cv.notify_all();
-        clear();
+        cv_.notify_all();
     }
 
     /**
-     * @description: 清空队列
-     * @return {void}
+     * @brief Clear all elements in queue
      */
     void clear()
     {
-        std::lock_guard<std::mutex> glck(m_mutex);
-        while (!m_queue.empty())
+        std::lock_guard<std::mutex> lock(mutex_);
+        while (!queue_.empty())
         {
-            m_queue.pop();
+            queue_.pop();
         }
     }
 
     /**
-     * @description: 获取队列的大小
-     * @return {size_t} 队列的大小
+     * @brief Get current queue size
+     * @return Number of elements in queue
      */
-    size_t size()
+    size_t size() const
     {
-        std::lock_guard<std::mutex> glck(m_mutex);
-        return m_queue.size();
+        std::lock_guard<std::mutex> lock(mutex_);
+        return queue_.size();
+    }
+
+    /**
+     * @brief Check if queue is empty
+     * @return true if empty, false otherwise
+     */
+    bool empty() const
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return queue_.empty();
     }
 
 private:
-    size_t m_cap;                 // 容量
-    std::queue<T> m_queue;        // 存储数据的队列
-    std::mutex m_mutex;           // 互斥锁，保证对队列的访问是线程安全的
-    std::condition_variable m_cv; // 条件变量，用于实现线程间的同步
-    std::atomic<bool> m_stop;     // 用于唤醒等待, 退出线程
+    size_t capacity_;
+    std::queue<T> queue_;
+    mutable std::mutex mutex_;
+    std::condition_variable cv_;
+    bool stopped_;
 };
 
 #endif // __SAFE_QUEUE_H__

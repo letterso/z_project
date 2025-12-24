@@ -124,10 +124,10 @@ bool Logger::init() {
         SPDLOG_INFO("[LOGGER] Use Async Mode");
         #endif
 
-        // 获取日志目录
+        // Get log directory
         std::string log_file_name = Singleton<LoggerManager>::instance().get_log_file_name();
 
-        // 创建主日志
+        // Create main logger
         if (!spdlog::get(LOG_TOPIC)) {
             auto stdout_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
             auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(log_file_name + "/" + LOG_TOPIC + ".log", LOG_FILE_SIZE, LOG_ROTATION);
@@ -144,11 +144,15 @@ bool Logger::init() {
             logger->flush_on(LOG_FLUSH_ON);
             m_logger_name.push_back(LOG_TOPIC);
             spdlog::register_logger(logger);
+            main_logger_ = logger;  // Cache the logger pointer
+        } else {
+            main_logger_ = spdlog::get(LOG_TOPIC);
         }
 
-        // 创建评估日志
+        // Create evaluation logger
         if (is_evaluate_mode()) {
             createAndConfigureLogger(LOG_TIME_TOPIC, log_file_name + "/" + LOG_TIME_TOPIC + ".log");
+            time_logger_ = spdlog::get(LOG_TIME_TOPIC);  // Cache the logger pointer
         }
 
         spdlog::flush_every(std::chrono::seconds(LOG_FLUSH_F));

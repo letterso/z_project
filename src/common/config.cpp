@@ -1,25 +1,39 @@
 #include "config.h"
 
-bool Config::SetParameterFile(const std::string &filename)
-{
-    if (config_ == nullptr)
-        config_ = std::shared_ptr<Config>(new Config);
+std::unique_ptr<Config> Config::instance_ = nullptr;
+std::once_flag Config::init_flag_;
 
-    std::ifstream param_file(filename);
-    if (!param_file) {
-        LOGE("[CONFIG] {} does not exist.", filename);
-        return false;
-    }
-    config_->param_file_ = YAML::LoadFile(filename);
-    if (config_->param_file_.IsNull())
-    {
-        LOGE("[CONFIG] parameter file {} does not exist.", filename);
-        return false;
-    }
-    return true;
+Config& Config::GetInstance() {
+    std::call_once(init_flag_, []() {
+        instance_ = std::unique_ptr<Config>(new Config());
+    });
+    return *instance_;
 }
 
-Config::~Config()
-{}
+bool Config::LoadFile(const std::string& filename) {
+    try {
+        param_file_ = YAML::LoadFile(filename);
+        if (param_file_.IsNull()) {
+            LOGE("[CONFIG] Parameter file {} is empty or invalid.", filename);
+            return false;
+        }
+        LOGI("[CONFIG] Successfully loaded configuration from {}", filename);
+        return true;
+    } catch (const YAML::BadFile& e) {
+        LOGE("[CONFIG] File {} does not exist or cannot be opened.", filename);
+        return false;
+    } catch (const YAML::Exception& e) {
+        LOGE("[CONFIG] YAML parsing error in {}: {}", filename, e.what());
+        return false;
+    } catch (const std::exception& e) {
+        LOGE("[CONFIG] Unexpected error loading {}: {}", filename, e.what());
+        return false;
+    }
+}
 
-std::shared_ptr<Config> Config::config_ = nullptr;
+// Deprecated: Kept for backward compatibility
+bool Config::SetParameterFile(const std::string& filename) {
+    return GetInstance().LoadFile(filename);
+}
+
+Config::~Config() {}

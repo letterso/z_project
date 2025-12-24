@@ -64,41 +64,43 @@ public:
 
     template <typename... Args>
     inline void log_critical(const char *fmt, Args... args){
-        if (auto l = spdlog::get(LOG_TOPIC)) l->critical(fmt, args...); else SPDLOG_CRITICAL(fmt, args...);
+        if (main_logger_) main_logger_->critical(fmt, args...); else SPDLOG_CRITICAL(fmt, args...);
     }
 
     template <typename... Args>
     inline void log_error(const char *fmt, Args... args) {
-        if (auto l = spdlog::get(LOG_TOPIC)) l->error(fmt, args...); else SPDLOG_ERROR(fmt, args...);
+        if (main_logger_) main_logger_->error(fmt, args...); else SPDLOG_ERROR(fmt, args...);
     }
 
     template <typename... Args>
     inline void log_warn(const char *fmt, Args... args) {
-        if (auto l = spdlog::get(LOG_TOPIC)) l->warn(fmt, args...); else SPDLOG_WARN(fmt, args...);
+        if (main_logger_) main_logger_->warn(fmt, args...); else SPDLOG_WARN(fmt, args...);
     }
 
     template <typename... Args>
     inline void log_info(const char *fmt, Args... args) {
-        if (auto l = spdlog::get(LOG_TOPIC)) l->info(fmt, args...); else SPDLOG_INFO(fmt, args...);
+        if (main_logger_) main_logger_->info(fmt, args...); else SPDLOG_INFO(fmt, args...);
     }
 
     template <typename... Args>
     inline void log_debug(const char *fmt, Args... args) {
-        if (auto l = spdlog::get(LOG_TOPIC)) l->debug(fmt, args...); else SPDLOG_DEBUG(fmt, args...);
+        if (main_logger_) main_logger_->debug(fmt, args...); else SPDLOG_DEBUG(fmt, args...);
     }
 
     template <typename... Args>
     inline void log_trace(const char *fmt, Args... args) {
-        if (auto l = spdlog::get(LOG_TOPIC)) l->trace(fmt, args...); else SPDLOG_TRACE(fmt, args...);
+        if (main_logger_) main_logger_->trace(fmt, args...); else SPDLOG_TRACE(fmt, args...);
     }
 
     template <typename... Args>
     inline void log_time(const char *fmt, Args... args) {
-        if (auto l = spdlog::get(LOG_TIME_TOPIC)) l->info(fmt, args...);
+        if (time_logger_) time_logger_->info(fmt, args...);
     }
 
 private:
     std::vector<std::string> m_logger_name;
+    std::shared_ptr<spdlog::logger> main_logger_;
+    std::shared_ptr<spdlog::logger> time_logger_;
 
     static bool is_debug_mode();
     static bool is_evaluate_mode();
