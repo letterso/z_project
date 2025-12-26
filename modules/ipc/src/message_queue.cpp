@@ -1,4 +1,4 @@
-#include "message_queue.h"
+#include "ipc/message_queue.hpp"
 
 #include <cstring>
 #include <sys/ipc.h>

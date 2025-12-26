@@ -1,12 +1,12 @@
 #ifndef __LOGGER_H__
 #define __LOGGER_H__
 
+#include "singleton.hpp"
+#include <spdlog/spdlog.h>
+
 #include <memory>
 #include <string>
 #include <vector>
-
-#include "singleton.h"
-#include <spdlog/spdlog.h>
 
 // normal日志
 #define LOG_TOPIC "node"                            // 日志tag

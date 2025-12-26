@@ -1,5 +1,6 @@
-#include "common/timer.h"
-#include "common/logger.h"
+#include "common/timer.hpp"
+#include "common/logger.hpp"
+#include "common/file_manager.hpp"
 
 #include <unistd.h>
 #include <iostream>
@@ -35,6 +36,11 @@ int main()
 
     // 节点信息
     print_application_info();
+
+    // 运行信息
+    auto exe_path = FileManager::GetInstance().GetExecutablePath();
+    if(exe_path.has_value())
+        LOGI("Executable Path: {}", exe_path.value().string());
 
     double last_time = 0;
     Timer timer(100, [&]

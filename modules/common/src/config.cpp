@@ -1,4 +1,4 @@
-#include "config.h"
+#include "common/config.hpp"
 
 std::unique_ptr<Config> Config::instance_ = nullptr;
 std::once_flag Config::init_flag_;

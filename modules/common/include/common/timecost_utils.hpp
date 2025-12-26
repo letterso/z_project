@@ -1,12 +1,12 @@
 #ifndef __TIMERCOST_UTILS_H__
 #define __TIMERCOST_UTILS_H__
 
+#include "logger.hpp"
+
 #include <string>
 #include <vector>
 #include <chrono>
 #include <map>
-
-#include "logger.h"
 
 /**
 * @brief 范围内时间评估

@@ -1,6 +1,6 @@
-#include "ipc/message_queue.h"
-#include "common/thread_pool.h"
-#include "common/logger.h"
+#include "ipc/message_queue.hpp"
+#include "common/thread_pool.hpp"
+#include "common/logger.hpp"
 
 #include <iostream>
 #include <chrono>

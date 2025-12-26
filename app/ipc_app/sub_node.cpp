@@ -1,5 +1,5 @@
-#include "ipc/message_queue.h"
-#include "common/logger.h"
+#include "ipc/message_queue.hpp"
+#include "common/logger.hpp"
 
 #include <chrono>
 #include <thread>

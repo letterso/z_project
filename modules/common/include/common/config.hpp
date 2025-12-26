@@ -3,12 +3,12 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
+#include "logger.hpp"
+#include <yaml-cpp/yaml.h>
+
 #include <memory>
 #include <mutex>
 #include <optional>
-
-#include <yaml-cpp/yaml.h>
-#include "logger.h"
 
 class Config {
 private:

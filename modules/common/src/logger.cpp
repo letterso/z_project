@@ -1,6 +1,6 @@
-#include "logger.h"
-#include "singleton.h"
-#include "file_manager.h"
+#include "common/logger.hpp"
+#include "common/singleton.hpp"
+#include "common/file_manager.hpp"
 
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/rotating_file_sink.h>
