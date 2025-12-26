@@ -35,7 +35,7 @@ bash .githook.sh
 ├── app             # 应用层代码，存放具体的可执行程序
 ├── cmake           # CMake 辅助模块
 ├── config          # 配置文件目录
-├── src             # 核心源码 
+├── modules         # 模块源码 
 ├── tools           # 实用工具脚本
 ├── xslt            # XSLT 模板
 ├── .githook.sh     # Git 钩子配置脚本
@@ -140,9 +140,9 @@ sudo dpkg -r cn.z.zproject      # 卸载
 
 ## 功能模块说明
 
-### `src` - 核心库
+### `modules` - 模块库
 
-`src` 目录包含了工程的核心功能，被编译成共享库供 `app` 中的应用使用。
+`modules` 目录包含了工程的核心功能，被编译成共享库供 `app` 中的应用使用。
 
 - **`common`**: 通用基础模块。
   - **参数管理 (`config`)**: 基于 `yaml-cpp` 的全局单例参数管理器，支持类型安全的参数访问和异常处理。
@@ -152,11 +152,10 @@ sudo dpkg -r cn.z.zproject      # 卸载
   - **线程池 (`thread_pool`)**: 用于管理和复用线程的实用工具，支持基于 future 的任务返回值。
   - **耗时分析 (`timecost_utils`)**: 提供多种工具，用于精确测量和记录代码块的执行时间。
 - **`ipc`**: 进程间通信模块，当前基于 System V 消息队列实现。
-- **`interface`**: 定义通用接口。
 
 ### `app` - 应用层
 
-`app` 目录存放使用 `src` 库构建的具体应用案例和可执行文件。
+`app` 目录存放使用 `modules` 库构建的具体应用案例和可执行文件。
 
 ## 运行时配置
 
