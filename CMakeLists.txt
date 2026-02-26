@@ -44,7 +44,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin) # 可执行文件
 
 # 编译
 add_subdirectory(${TOP}/app)
-add_subdirectory(${TOP}/src)
+add_subdirectory(${TOP}/modules)
 
 add_subdirectory(${TOP}/3rdparty/spdlog)
 add_subdirectory(${TOP}/3rdparty/yaml-cpp)
