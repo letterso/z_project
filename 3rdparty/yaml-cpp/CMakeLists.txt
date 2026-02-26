@@ -1,12 +1,10 @@
 project(yaml-cpp)
 
 add_library(
-    ${PROJECT_NAME} STATIC IMPORTED
-    GLOBAL
+    ${PROJECT_NAME} SHARED IMPORTED GLOBAL
 )
 add_library(
-    3rdparty::${PROJECT_NAME} ALIAS
-    ${PROJECT_NAME}
+    3rdparty::${PROJECT_NAME} ALIAS ${PROJECT_NAME}
 )
 set_target_properties(
     ${PROJECT_NAME} PROPERTIES

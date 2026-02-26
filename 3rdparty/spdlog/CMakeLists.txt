@@ -1,15 +1,12 @@
 project(spdlog)
 
-add_library(
-    ${PROJECT_NAME} STATIC IMPORTED
-    GLOBAL
-)
-add_library(
-    3rdparty::${PROJECT_NAME} ALIAS
-    ${PROJECT_NAME}
-)
-set_target_properties(
-    ${PROJECT_NAME} PROPERTIES
-    IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/lib/libspdlog.so
-    INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include
+# Create INTERFACE library for header-only library
+add_library(${PROJECT_NAME} INTERFACE)
+add_library(3rdparty::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
+
+# Set properties for INTERFACE library
+target_include_directories(
+    ${PROJECT_NAME} INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
