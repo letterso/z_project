@@ -10,6 +10,6 @@ add_library(
 )
 set_target_properties(
     ${PROJECT_NAME} PROPERTIES
-    IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/lib/libspdlog.a
+    IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/lib/libspdlog.so
     INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
