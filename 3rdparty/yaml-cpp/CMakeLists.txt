@@ -8,6 +8,6 @@ add_library(
 )
 set_target_properties(
     ${PROJECT_NAME} PROPERTIES
-    IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/lib/libyaml-cpp.so.0.8
+    IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/lib/libyaml-cpp.so
     INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
