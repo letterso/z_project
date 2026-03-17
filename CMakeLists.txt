@@ -42,6 +42,12 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib) # 静态库
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib) # 动态库
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin) # 可执行文件
 
+# 单元测试（必须在 add_subdirectory 之前调用，使 CTestTestfile.cmake 链完整）
+if(ENABLE_TEST)
+  enable_testing()
+  add_subdirectory(${TOP}/3rdparty/doctest)
+endif()
+
 # 编译
 add_subdirectory(${TOP}/app)
 add_subdirectory(${TOP}/modules)

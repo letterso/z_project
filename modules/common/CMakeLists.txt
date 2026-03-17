@@ -20,3 +20,7 @@ set_target_properties(COMMON_LIBS PROPERTIES
 
 target_precompile_headers(COMMON_LIBS PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include/common/pch.h)
+
+if(ENABLE_TEST)
+  add_subdirectory(tests)
+endif()

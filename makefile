@@ -31,6 +31,7 @@ test:  ## 编译代码和单元测试
 		  -DCMAKE_BUILD_TYPE=$(build_type) \
 		  -DENABLE_TEST=ON
 	@cmake --build $(build_dir) --parallel
+	@cd $(build_dir) && ctest --output-on-failure
 
 build: ## 编译代码
 	@cmake -B $(build_dir) \
