@@ -62,6 +62,7 @@ double TimeCost::GetTime() {
 }
 
 // --- TimeCostEva::TimerRecord Implementation ---
+std::mutex TimeCostEva::records_mutex_;
 std::map<std::string, TimeCostEva::TimerRecord> TimeCostEva::records_;
 
 TimeCostEva::TimerRecord::TimerRecord(const std::string& name,
@@ -71,6 +72,7 @@ TimeCostEva::TimerRecord::TimerRecord(const std::string& name,
 }
 
 void TimeCostEva::PrintAll() {
+  std::lock_guard<std::mutex> lock(records_mutex_);
   LOGI("\033[32m>>> ===== Printing run time =====\033[0m");
   for (const auto& r : records_) {
     LOGI("> [ {} ] average time usage: {:.6f} ms , called times: {}", r.first,
@@ -83,6 +85,7 @@ void TimeCostEva::PrintAll() {
 }
 
 void TimeCostEva::DumpIntoFile() {
+  std::lock_guard<std::mutex> lock(records_mutex_);
   // 写标题
   size_t max_length = 0;
   std::ostringstream header_oss;
@@ -110,6 +113,7 @@ void TimeCostEva::DumpIntoFile() {
 
 void TimeCostEva::SetEvaluatet(const std::string& func_name,
                                const double& time_usage) {
+  std::lock_guard<std::mutex> lock(records_mutex_);
   if (records_.find(func_name) != records_.end()) {
     records_[func_name].time_usage_in_ms_.emplace_back(time_usage);
   } else {
@@ -118,11 +122,12 @@ void TimeCostEva::SetEvaluatet(const std::string& func_name,
 }
 
 double TimeCostEva::GetMeanTime(const std::string& func_name) {
+  std::lock_guard<std::mutex> lock(records_mutex_);
   if (records_.find(func_name) == records_.end()) {
     return 0.0;
   }
 
-  auto r = records_[func_name];
+  const auto& r = records_[func_name];
   return std::accumulate(r.time_usage_in_ms_.begin(), r.time_usage_in_ms_.end(),
                          0.0) /
          double(r.time_usage_in_ms_.size());

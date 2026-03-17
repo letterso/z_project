@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <map>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -63,6 +64,7 @@ class TimeCostEva {
             .count() *
         1000;
 
+    std::lock_guard<std::mutex> lock(records_mutex_);
     if (records_.find(func_name) != records_.end()) {
       records_[func_name].time_usage_in_ms_.emplace_back(time_used);
     } else {
@@ -87,6 +89,7 @@ class TimeCostEva {
   static void Clear() { records_.clear(); }
 
  private:
+  static std::mutex records_mutex_;
   static std::map<std::string, TimerRecord> records_;
 };
 

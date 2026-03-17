@@ -167,7 +167,11 @@ class Timer {
           } else if (events[i].data.fd == wakeup_fd_.get()) {
             // Read wakeup signal and exit
             uint64_t val;
-            read(wakeup_fd_.get(), &val, sizeof(val));
+            ssize_t ret = read(wakeup_fd_.get(), &val, sizeof(val));
+            if (ret == -1 && errno != EAGAIN && errno != EINTR) {
+              std::cerr << "[TIMER] Failed to read wakeup signal: "
+                        << strerror(errno) << std::endl;
+            }
             return;
           }
         }

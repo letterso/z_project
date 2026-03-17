@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <exception>
 #include <functional>
 #include <future>
 #include <mutex>
@@ -36,15 +37,23 @@ class ThreadPool {
             tasks_.pop();
           }
           cv_producer_.notify_one();  // Notify if queue was full
-          task();
+          try {
+            task();
+          } catch (...) {
+            // Keep worker alive even if a task throws unexpectedly.
+          }
         }
       });
     }
   }
 
   ~ThreadPool() {
-    stop_.store(true);
+    {
+      std::lock_guard<std::mutex> lock(mtx_);
+      stop_.store(true);
+    }
     cv_.notify_all();
+    cv_producer_.notify_all();
     for (auto& worker : workers_) {
       if (worker.joinable()) {
         worker.join();
@@ -62,8 +71,9 @@ class ThreadPool {
    * @throws std::runtime_error if pool is stopped or queue is full
    */
   template <typename F, typename... Args>
-  auto submit(F&& f, Args&&... args) -> std::future<decltype(f(args...))> {
-    using return_type = decltype(f(args...));
+  auto submit(F&& f, Args&&... args)
+      -> std::future<std::invoke_result_t<F, Args...>> {
+    using return_type = std::invoke_result_t<F, Args...>;
 
     auto taskPtr = std::make_shared<std::packaged_task<return_type()>>(
         std::bind(std::forward<F>(f), std::forward<Args>(args)...));

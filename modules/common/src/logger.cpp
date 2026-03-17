@@ -32,24 +32,33 @@ void LoggerManager::create_directories() {
   auto current_time = std::chrono::system_clock::now();
   std::time_t time_t_format =
       std::chrono::system_clock::to_time_t(current_time);
-  std::tm tm_format = *std::localtime(&time_t_format);
-
-  // 使用年月日创建一级目录
-  std::ostringstream date_oss;
-  date_oss << log_dir_str << "/" << std::put_time(&tm_format, "%Y%m%d");
-  std::string date_file_name = date_oss.str();
-  if (!std::filesystem::is_directory(date_file_name) ||
-      !std::filesystem::exists(date_file_name)) {
-    std::filesystem::create_directories(date_file_name);
+  std::tm tm_format {};
+  if (localtime_r(&time_t_format, &tm_format) == nullptr) {
+    spdlog::error("[LOGGER] localtime_r failed");
+    return;
   }
 
-  // 使用时分秒创建二级目录
-  std::ostringstream time_oss;
-  time_oss << date_file_name << "/" << std::put_time(&tm_format, "%H%M%S");
-  _time_file_name = time_oss.str();
-  if (!std::filesystem::is_directory(_time_file_name) ||
-      !std::filesystem::exists(_time_file_name)) {
-    std::filesystem::create_directories(_time_file_name);
+  try {
+    // 使用年月日创建一级目录
+    std::ostringstream date_oss;
+    date_oss << log_dir_str << "/" << std::put_time(&tm_format, "%Y%m%d");
+    std::string date_file_name = date_oss.str();
+    if (!std::filesystem::is_directory(date_file_name) ||
+        !std::filesystem::exists(date_file_name)) {
+      std::filesystem::create_directories(date_file_name);
+    }
+
+    // 使用时分秒创建二级目录
+    std::ostringstream time_oss;
+    time_oss << date_file_name << "/" << std::put_time(&tm_format, "%H%M%S");
+    _time_file_name = time_oss.str();
+    if (!std::filesystem::is_directory(_time_file_name) ||
+        !std::filesystem::exists(_time_file_name)) {
+      std::filesystem::create_directories(_time_file_name);
+    }
+  } catch (const std::filesystem::filesystem_error& e) {
+    spdlog::error("[LOGGER] create_directories failed: {}", e.what());
+    _time_file_name.clear();
   }
 }
 

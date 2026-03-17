@@ -32,11 +32,34 @@ class SafeQueue {
    */
   bool push(const T& value) {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (queue_.size() >= capacity_) {
+    if (stopped_ || queue_.size() >= capacity_) {
       return false;
     }
 
     queue_.push(value);
+    cv_.notify_one();
+    return true;
+  }
+
+  bool push(T&& value) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stopped_ || queue_.size() >= capacity_) {
+      return false;
+    }
+
+    queue_.push(std::move(value));
+    cv_.notify_one();
+    return true;
+  }
+
+  template <typename... Args>
+  bool emplace(Args&&... args) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stopped_ || queue_.size() >= capacity_) {
+      return false;
+    }
+
+    queue_.emplace(std::forward<Args>(args)...);
     cv_.notify_one();
     return true;
   }
@@ -66,7 +89,7 @@ class SafeQueue {
     std::unique_lock<std::mutex> lock(mutex_);
     cv_.wait(lock, [this]() { return !queue_.empty() || stopped_; });
 
-    if (stopped_) {
+    if (queue_.empty()) {
       return false;
     }
 
