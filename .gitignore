@@ -6,3 +6,8 @@ log/*
 3rdparty/spdlog/include
 3rdparty/yaml-cpp/lib
 3rdparty/yaml-cpp/include
+
+# agent
+.agents
+.claude
+skills-lock.json
